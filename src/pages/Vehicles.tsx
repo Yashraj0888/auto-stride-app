@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Search, SlidersHorizontal } from "lucide-react";
+import { Search, SlidersHorizontal, Loader2 } from "lucide-react";
+import { useCars } from "@/hooks/useCars";
 import carSedan from "@/assets/car-sedan.jpg";
 import carSuv from "@/assets/car-suv.jpg";
 import carConvertible from "@/assets/car-convertible.jpg";
@@ -14,75 +15,43 @@ import carConvertible from "@/assets/car-convertible.jpg";
 const Vehicles = () => {
   const [priceRange, setPriceRange] = useState([0, 500]);
   const [showFilters, setShowFilters] = useState(true);
+  const [searchMake, setSearchMake] = useState("");
+  const [selectedType, setSelectedType] = useState("all");
+  const [selectedTransmission, setSelectedTransmission] = useState("all");
+  const [selectedFuel, setSelectedFuel] = useState("all");
+  const [minSeats, setMinSeats] = useState("any");
 
-  const vehicles = [
-    {
-      id: "1",
-      name: "Tesla Model 3",
-      image: carSedan,
-      price: 89,
-      type: "Sedan",
-      seats: 5,
-      transmission: "Auto",
-      fuel: "Electric",
-      location: "San Francisco",
-    },
-    {
-      id: "2",
-      name: "BMW X5",
-      image: carSuv,
-      price: 120,
-      type: "SUV",
-      seats: 7,
-      transmission: "Auto",
-      fuel: "Hybrid",
-      location: "Los Angeles",
-    },
-    {
-      id: "3",
-      name: "Porsche 911",
-      image: carConvertible,
-      price: 250,
-      type: "Sports",
-      seats: 2,
-      transmission: "Auto",
-      fuel: "Gasoline",
-      location: "Miami",
-    },
-    {
-      id: "4",
-      name: "Audi A4",
-      image: carSedan,
-      price: 95,
-      type: "Sedan",
-      seats: 5,
-      transmission: "Auto",
-      fuel: "Gasoline",
-      location: "New York",
-    },
-    {
-      id: "5",
-      name: "Mercedes GLE",
-      image: carSuv,
-      price: 140,
-      type: "SUV",
-      seats: 7,
-      transmission: "Auto",
-      fuel: "Diesel",
-      location: "Chicago",
-    },
-    {
-      id: "6",
-      name: "BMW M4",
-      image: carConvertible,
-      price: 200,
-      type: "Sports",
-      seats: 4,
-      transmission: "Manual",
-      fuel: "Gasoline",
-      location: "Dallas",
-    },
-  ];
+  // Fetch real cars from RapidAPI
+  const { data: apiCars, isLoading, error } = useCars({ limit: 50 });
+
+  // Fallback images map
+  const imageMap: Record<string, string> = {
+    sedan: carSedan,
+    suv: carSuv,
+    sports: carConvertible,
+    luxury: carSedan,
+  };
+
+  // Use API data or fallback to default images
+  const vehicles = apiCars?.map(car => ({
+    ...car,
+    image: imageMap[car.type?.toLowerCase()] || carSedan,
+  })) || [];
+
+  // Filter vehicles based on current filter state
+  const filteredVehicles = vehicles.filter(vehicle => {
+    const matchesSearch = !searchMake || 
+      vehicle.name.toLowerCase().includes(searchMake.toLowerCase()) ||
+      vehicle.make?.toLowerCase().includes(searchMake.toLowerCase());
+    const matchesPrice = vehicle.price >= priceRange[0] && vehicle.price <= priceRange[1];
+    const matchesType = selectedType === "all" || vehicle.type?.toLowerCase() === selectedType.toLowerCase();
+    const matchesTransmission = selectedTransmission === "all" || 
+      vehicle.transmission?.toLowerCase().includes(selectedTransmission.toLowerCase());
+    const matchesFuel = selectedFuel === "all" || vehicle.fuel?.toLowerCase() === selectedFuel.toLowerCase();
+    const matchesSeats = minSeats === "any" || vehicle.seats >= parseInt(minSeats);
+
+    return matchesSearch && matchesPrice && matchesType && matchesTransmission && matchesFuel && matchesSeats;
+  });
 
   return (
     <div className="min-h-screen bg-subtle-gradient">
@@ -112,13 +81,15 @@ const Vehicles = () => {
               <div className="space-y-6">
                 {/* Search */}
                 <div>
-                  <Label htmlFor="search" className="mb-2 block">Search</Label>
+                  <Label htmlFor="search" className="mb-2 block">Search Make/Model</Label>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                       id="search"
-                      placeholder="Search vehicles..."
+                      placeholder="e.g. Toyota, BMW..."
                       className="pl-10"
+                      value={searchMake}
+                      onChange={(e) => setSearchMake(e.target.value)}
                     />
                   </div>
                 </div>
@@ -126,7 +97,7 @@ const Vehicles = () => {
                 {/* Vehicle Type */}
                 <div>
                   <Label htmlFor="type" className="mb-2 block">Vehicle Type</Label>
-                  <Select>
+                  <Select value={selectedType} onValueChange={setSelectedType}>
                     <SelectTrigger id="type">
                       <SelectValue placeholder="All Types" />
                     </SelectTrigger>
@@ -157,7 +128,7 @@ const Vehicles = () => {
                 {/* Transmission */}
                 <div>
                   <Label htmlFor="transmission" className="mb-2 block">Transmission</Label>
-                  <Select>
+                  <Select value={selectedTransmission} onValueChange={setSelectedTransmission}>
                     <SelectTrigger id="transmission">
                       <SelectValue placeholder="All" />
                     </SelectTrigger>
@@ -172,7 +143,7 @@ const Vehicles = () => {
                 {/* Fuel Type */}
                 <div>
                   <Label htmlFor="fuel" className="mb-2 block">Fuel Type</Label>
-                  <Select>
+                  <Select value={selectedFuel} onValueChange={setSelectedFuel}>
                     <SelectTrigger id="fuel">
                       <SelectValue placeholder="All" />
                     </SelectTrigger>
@@ -189,7 +160,7 @@ const Vehicles = () => {
                 {/* Seats */}
                 <div>
                   <Label htmlFor="seats" className="mb-2 block">Minimum Seats</Label>
-                  <Select>
+                  <Select value={minSeats} onValueChange={setMinSeats}>
                     <SelectTrigger id="seats">
                       <SelectValue placeholder="Any" />
                     </SelectTrigger>
@@ -203,7 +174,14 @@ const Vehicles = () => {
                   </Select>
                 </div>
 
-                <Button className="w-full" variant="accent">
+                <Button 
+                  className="w-full" 
+                  variant="accent"
+                  onClick={() => {
+                    // Filters are applied in real-time, this just provides feedback
+                    setShowFilters(false);
+                  }}
+                >
                   Apply Filters
                 </Button>
               </div>
@@ -226,7 +204,18 @@ const Vehicles = () => {
 
             <div className="mb-4 flex items-center justify-between">
               <p className="text-muted-foreground">
-                Showing <span className="font-semibold text-foreground">{vehicles.length}</span> vehicles
+                {isLoading ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Loading vehicles...
+                  </span>
+                ) : error ? (
+                  <span className="text-destructive">Error loading vehicles</span>
+                ) : (
+                  <>
+                    Showing <span className="font-semibold text-foreground">{filteredVehicles.length}</span> vehicles
+                  </>
+                )}
               </p>
               <Select defaultValue="recommended">
                 <SelectTrigger className="w-48">
@@ -241,11 +230,26 @@ const Vehicles = () => {
               </Select>
             </div>
 
-            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {vehicles.map((vehicle) => (
-                <VehicleCard key={vehicle.id} {...vehicle} />
-              ))}
-            </div>
+            {isLoading ? (
+              <div className="col-span-full flex items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 animate-spin text-accent" />
+              </div>
+            ) : error ? (
+              <div className="col-span-full text-center py-20">
+                <p className="text-muted-foreground">Failed to load vehicles. Using RapidAPI for live data.</p>
+                <p className="text-sm text-muted-foreground mt-2">Please check your API key configuration.</p>
+              </div>
+            ) : filteredVehicles.length === 0 ? (
+              <div className="col-span-full text-center py-20">
+                <p className="text-muted-foreground">No vehicles match your filters</p>
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {filteredVehicles.map((vehicle) => (
+                  <VehicleCard key={vehicle.id} {...vehicle} />
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -1,1 +1,4 @@
 project_id = "bwdykudqdxrpyphmztug"
+
+[functions.fetch-cars]
+verify_jwt = false
